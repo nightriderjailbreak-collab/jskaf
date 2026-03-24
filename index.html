@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Friend Match 💖</title>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+  <style>
+    body {
+      font-family: Arial;
+      text-align: center;
+      background: linear-gradient(135deg, #ff9a9e, #fad0c4);
+    }
+
+    .box {
+      background: white;
+      padding: 20px;
+      margin: 30px auto;
+      width: 360px;
+      border-radius: 15px;
+    }
+
+    button {
+      padding: 10px;
+      width: 100%;
+      background: #ff4d6d;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    .question {
+      text-align: left;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="box" id="startBox">
+  <h2>Start 💖</h2>
+  <input id="username" placeholder="Enter your name"><br><br>
+
+  <select id="gender">
+    <option value="">Select Gender</option>
+    <option value="boy">Boy</option>
+    <option value="girl">Girl</option>
+  </select>
+
+  <button onclick="startQuiz()">Start Quiz 🚀</button>
+</div>
+
+<div class="box" id="quizBox" style="display:none;">
+  <h2>Questions 💭</h2>
+  <form id="quizForm"></form>
+  <div id="extra"></div>
+  <button type="button" onclick="submitQuiz()">Submit ❤️</button>
+</div>
+
+<div class="box" id="resultBox" style="display:none;">
+  <h2>Your Match 💘</h2>
+  <p id="result"></p>
+</div>
+
+<script>
+
+// 🔥 REPLACE WITH YOUR CONFIG
+const firebaseConfig = {
+  apiKey: "XXXX",
+  authDomain: "XXXX",
+  projectId: "XXXX"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let currentUser="";
+let currentGender="";
+
+let people = [
+"Yuvika Sharma","Mayra Gupta","Tanvi Gautam","Dishika","Gouranshi","Myra Sharad",
+"Biraaj Dabas","Aarav Kapoor","Madhav","Dhruva","Ritwik","Kiaan","Pranav","Naitik",
+"Vihaan Mittal","Khushal Bhambri","Utkarsh","Vihaan Bhamri"
+];
+
+let genders = {
+"Yuvika Sharma":"girl","Mayra Gupta":"girl","Tanvi Gautam":"girl","Dishika":"girl","Gouranshi":"girl","Myra Sharad":"girl","Dhruva":"girl",
+"Biraaj Dabas":"boy","Aarav Kapoor":"boy","Madhav":"boy","Ritwik":"boy","Kiaan":"boy","Pranav":"boy","Naitik":"boy","Vihaan Mittal":"boy","Khushal Bhambri":"boy","Utkarsh":"boy","Vihaan Bhamri":"boy"
+};
+
+let questions = [
+"Do you like parties?","Are you emotional?","Do you prefer personality over looks?",
+"Do you like texting more than calling?","Do you believe in love at first sight?",
+"Are you outgoing?","Do you like surprises?","Do you enjoy deep conversations?",
+"Do you get jealous easily?","Do you like attention?","Do you forgive easily?",
+"Do you enjoy romantic movies?","Are you confident?","Do you like adventures?",
+"Do you enjoy planning dates?","Do you believe in long-term relationships?",
+"Do you like compliments?","Do you express feelings openly?",
+"Do you like cute gestures?","Do you believe in commitment?"
+];
+
+function startQuiz(){
+  currentUser=document.getElementById("username").value.trim();
+  currentGender=document.getElementById("gender").value;
+
+  if(!currentUser || !currentGender){
+    alert("Enter name and gender!");
+    return;
+  }
+
+  document.getElementById("startBox").style.display="none";
+  document.getElementById("quizBox").style.display="block";
+
+  let form=document.getElementById("quizForm");
+  form.innerHTML="";
+
+  questions.forEach((q,i)=>{
+    form.innerHTML+=`
+      <div class="question">
+      ${i+1}. ${q}<br>
+      <input type="radio" name="q${i}" value="1"> Yes
+      <input type="radio" name="q${i}" value="0"> No
+      </div>
+    `;
+  });
+
+  let opposite=people.filter(p=>genders[p]!==currentGender);
+
+  document.getElementById("extra").innerHTML=`
+    <p><b>Personality preference:</b></p>
+    ${opposite.map(p=>`<input type="radio" name="p" value="${p}">${p}<br>`).join("")}
+
+    <p><b>Looks preference:</b></p>
+    ${opposite.map(p=>`<input type="radio" name="l" value="${p}">${p}<br>`).join("")}
+  `;
+}
+
+async function submitQuiz(){
+  try{
+
+    let answers=[];
+
+    for(let i=0;i<20;i++){
+      let v=document.querySelector(`input[name=q${i}]:checked`);
+      if(!v){
+        alert("Answer all questions!");
+        return;
+      }
+      answers.push(v.value);
+    }
+
+    let p=document.querySelector("input[name=p]:checked");
+    let l=document.querySelector("input[name=l]:checked");
+
+    if(!p || !l){
+      alert("Select preferences!");
+      return;
+    }
+
+    // SAVE TO DATABASE
+    await db.collection("users").doc(currentUser).set({
+      answers: answers,
+      gender: currentGender
+    });
+
+    // GET ALL USERS
+    let snap=await db.collection("users").get();
+
+    let best=null, bestScore=-1;
+
+    snap.forEach(doc=>{
+      let name=doc.id;
+      let data=doc.data();
+
+      if(name===currentUser) return;
+      if(data.gender===currentGender) return;
+
+      let score=0;
+
+      for(let i=0;i<20;i++){
+        if(answers[i]==data.answers[i]) score++;
+      }
+
+      if(name===p.value) score+=5;
+      if(name===l.value) score+=3;
+
+      if(score>bestScore){
+        bestScore=score;
+        best=name;
+      }
+    });
+
+    document.getElementById("quizBox").style.display="none";
+    document.getElementById("resultBox").style.display="block";
+
+    document.getElementById("result").innerText =
+      best ? "💘 Your match is: "+best : "😢 No match yet";
+
+  }catch(e){
+    console.error(e);
+    alert("ERROR: "+e.message);
+  }
+}
+
+</script>
+
+</body>
+</html>
